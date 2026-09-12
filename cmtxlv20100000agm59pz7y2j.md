@@ -1,5 +1,5 @@
 ---
-title: "Building a CRUD API with FastAPI: "
+title: "Building a CRUD API with FastAPI "
 seoTitle: "Building a CRUD API with FastAPI"
 seoDescription: "Building a CRUD API with FastAPI"
 datePublished: 2026-09-01T09:30:00.000Z
