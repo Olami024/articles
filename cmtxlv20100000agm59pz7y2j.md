@@ -2,7 +2,7 @@
 title: "Building a CRUD API with FastAPI "
 seoTitle: "Building a CRUD API with FastAPI"
 seoDescription: "Building a CRUD API with FastAPI"
-datePublished: 2026-09-01T09:30:00.000Z
+datePublished: 2026-09-10T08:00:00.000Z
 cuid: cmtxlv20100000agm59pz7y2j
 slug: building-a-crud-api-with-fastapi
 cover: https://cdn.hashnode.com/uploads/covers/6a96addb74971ca68e6a6233/d0945d51-00ce-4997-9efe-ecf63afb7d20.png
