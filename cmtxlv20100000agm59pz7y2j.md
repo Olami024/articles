@@ -5,7 +5,7 @@ seoDescription: "Building a CRUD API with FastAPI"
 datePublished: 2026-09-10T08:00:00.000Z
 cuid: cmtxlv20100000agm59pz7y2j
 slug: building-a-crud-api-with-fastapi
-cover: https://cdn.hashnode.com/uploads/covers/6a96addb74971ca68e6a6233/d0945d51-00ce-4997-9efe-ecf63afb7d20.png
+cover: https://cdn.hashnode.com/uploads/covers/6a96addb74971ca68e6a6233/bf1e27c6-0f2f-46dc-8b36-b67d929fbfd3.png
 tags: python, crud, fastapi, crud-operations, backend-systems
 
 ---
@@ -317,3 +317,332 @@ The application flow is now:
 **That brings an end to the Part One of *Building a CRUD API with FastAPI: From an In-Memory Prototype to a Working Backend*.**
 
 In this part, we set up the FastAPI application, created our assessment model, and implemented the first CRUD operations for creating and retrieving assessments. In **Part Two**, we’ll complete the CRUD cycle by implementing **update and delete operations**, while looking more closely at partial updates, path parameters, and error handling.
+
+## From an In-Memory Prototype to a Working Backend \[Part 2\]
+
+In continuation of this tutorial, this second part on the tutorial,on the CRUD cycle by discussing the patch, update and delete operations. The tool in question that I built this CRUD API for, focuses on how AI-assisted systems may affect human judgment, agency, responsibility, and meaningful oversight. Instead of beginning immediately with PostgreSQL, authentication, and a large domain model, I started with an in-memory FastAPI application. This allowed me to understand the request-response cycle, Pydantic models, path parameters, HTTP status codes, and error handling before adding persistence.
+
+In this article, I focused on:
+
+GET     /assessments/{assessment\_id}
+
+PATCH   /assessments/{assessment\_id}
+
+DELETE  /assessments/{assessment\_id}
+
+### 7\. Retrieve one assessment
+
+I begin with retrieving the individual assessment by ID. The route uses a path parameter: @app.get("/assessments/{assessment\_id}")
+
+```python
+@app.get("/assessments/{assessment_id}")
+async def get_assessment(assessment_id: int):
+
+    for assessment in assessments:
+
+        if assessment["id"] == assessment_id:
+            return assessment
+
+```
+
+This shows that FastAPI passes the value from the URL into the function. If the client requests: GET /assessments/3 , FastAPI passes: assessment\_id = 3
+
+Then we search the list above, What happens if assessment 3 does not exist? then there is a need for an error response.
+
+### 8\. Add 404 error handling
+
+To address that issues if it raises we 404 error handling by importing the HTTPException and the endpoint becomes:
+
+```python
+Import HTTPException:
+from fastapi import HTTPException
+@app.get("/assessments/{assessment_id}")
+async def get_assessment(assessment_id: int):
+
+    for assessment in assessments:
+
+        if assessment["id"] == assessment_id:
+            return assessment
+
+    raise HTTPException(
+        status_code=404,
+        detail="Assessment not found"
+    )
+
+```
+
+This is important because an API should communicate failure through both the response body and the HTTP status code.  
+
+### 9\. Create a model for partial updates
+
+For updates we use **patch**; a PATCH request means the client can update only the fields it wants to change.  
+For example:
+
+> {
+> 
+>     "description": "Updated description"
+> 
+> }
+> 
+> should be valid without requiring system\_name and organisation again.
+> 
+> So the update model makes each field optional:
+> 
+> class AssessmentUpdate(BaseModel):
+> 
+>     system\_name: str | None = None
+> 
+>     organisation: str | None = None
+> 
+>     description: str | None = None
+> 
+> This is different from AssessmentCreate, where all three fields are required.
+> 
+> Conceptually:
+> 
+> AssessmentCreate
+> 
+> \----------------
+> 
+> system\_name     required
+> 
+> organisation    required
+> 
+> description     required
+> 
+>   
+>   
+> 
+> AssessmentUpdate
+> 
+> \----------------
+> 
+> system\_name     optional
+> 
+> organisation    optional
+> 
+> description     optional
+
+  
+  
+The PATCH route looks like this:
+
+```plaintext
+@app.patch("/assessments/{assessment_id}")
+async def update_assessment(
+    assessment_id: int,
+    assessment_update: AssessmentUpdate
+):
+First, we only extract fields that the client actually sent:
+update_data = assessment_update.model_dump(
+    exclude_unset=True
+)
+```
+
+### 8.The last CRUD operation is delete.
+
+The endpoint for the delete operation looks like :
+
+```python
+@app.delete("/assessments/{assessment_id}")
+async def delete_assessment(assessment_id: int):
+
+    for assessment in assessments:
+
+        if assessment["id"] == assessment_id:
+
+            assessments.remove(assessment)
+
+            return {
+                "message": "Assessment deleted successfully",
+                "id": assessment_id
+            }
+
+    raise HTTPException(
+        status_code=404,
+        detail="Assessment not found"
+    )
+
+```
+
+> `The endpoint searches for the requested assessment.`
+> 
+> `If it exists: assessments.remove(assessment)`
+> 
+> `removes it from the list.`
+> 
+> `If it does not exist, the API returns:`
+> 
+> `404 Not Found`
+
+### 10 . The complete API at this stage
+
+In essence the complete API operations on the main.py looks like  
+
+```python
+from pydantic import BaseModel
+
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    status
+)
+
+
+app = FastAPI()
+
+
+assessments = []
+
+
+class AssessmentCreate(BaseModel):
+    system_name: str
+    organisation: str
+    description: str
+
+
+class AssessmentUpdate(BaseModel):
+    system_name: str | None = None
+    organisation: str | None = None
+    description: str | None = None
+
+
+@app.get("/health")
+async def health_check():
+
+    return {
+        "status": "OK",
+        "service": "Responsibility Lens API"
+    }
+
+
+@app.get("/assessments")
+async def assessments_list():
+
+    return assessments
+
+
+@app.post(
+    "/assessments",
+    status_code=status.HTTP_201_CREATED
+)
+async def create_assessment(
+    assessment: AssessmentCreate
+):
+
+    assessment_data = assessment.model_dump()
+
+    assessment_data["id"] = len(assessments) + 1
+
+    assessments.append(assessment_data)
+
+    return assessment_data
+
+
+@app.get("/assessments/{assessment_id}")
+async def get_assessment(
+    assessment_id: int
+):
+
+    for assessment in assessments:
+
+        if assessment["id"] == assessment_id:
+            return assessment
+
+    raise HTTPException(
+        status_code=404,
+        detail="Assessment not found"
+    )
+
+
+@app.patch("/assessments/{assessment_id}")
+async def update_assessment(
+    assessment_id: int,
+    assessment_update: AssessmentUpdate
+):
+
+    update_data = assessment_update.model_dump(
+        exclude_unset=True
+    )
+
+    for assessment in assessments:
+
+        if assessment["id"] == assessment_id:
+
+            assessment.update(update_data)
+
+            return assessment
+
+    raise HTTPException(
+        status_code=404,
+        detail="Assessment not found"
+    )
+
+
+@app.delete("/assessments/{assessment_id}")
+async def delete_assessment(
+    assessment_id: int
+):
+
+    for assessment in assessments:
+
+        if assessment["id"] == assessment_id:
+
+            assessments.remove(assessment)
+
+            return {
+                "message": "Assessment deleted successfully",
+                "id": assessment_id
+            }
+
+    raise HTTPException(
+        status_code=404,
+        detail="Assessment not found"
+    )
+```
+
+The last step is to test this crud operation in FAST API documentation. One of FastAPI's useful development features is automatically generated interactive documentation. With the server running, I can visit:
+
+> http://127.0.0.1:8000/docs
+> 
+> From there, I can test:
+> 
+> POST /assessments
+> 
+> GET /assessments
+> 
+> GET /assessments/{assessment\_id}
+> 
+> PATCH /assessments/{assessment\_id}
+> 
+> DELETE /assessments/{assessment\_id}
+> 
+> For example, I can create:
+> 
+> {
+> 
+> "system\_name": "AI Decision Support",
+> 
+> "organisation": "Example Organisation",
+> 
+> "description": "A system used to support organisational decisions."
+> 
+> }
+> 
+> and confirm that the API returns:
+> 
+> 201 Created
+> 
+> I can then retrieve, update, and delete the same record.
+
+It is important to note that this stage focused on testing a simple FastAPI CRUD API using FastAPI’s interactive `/docs` interface, while reinforcing how requests move through routing, Pydantic validation, application logic, storage, and responses. It also clarified common HTTP status codes such as 201, 404, 422, and 500, as well as the difference between full model serialization and partial updates using `exclude_unset=True.` The current implementation is intentionally basic, relying on in-memory storage and simple ID generation, so it is not yet suitable for production. The next step is to strengthen request validation with `Pydantic Field()` constraints and examine 422 Unprocessable Entity responses in more detail.
+
+**References**
+
+[FastAPI Documentation Interactive API docs and routing](https://fastapi.tiangolo.com/tutorial/first-steps/)
+
+Pydantic Documentation — Models, model\_dump(), Field(), and validation
+
+HTTP status code reference — for 201, 404, 422, and 500.
+
+Project repository: View the full FastAPI implementation and follow the project’s development on GitHub: \[[v5-fastapi-postgresql/backend](https://github.com/Ethentra-Lab/responsibility-lens-hjpi/tree/v5-fastapi-postgresql/backend)\]
